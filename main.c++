@@ -1,9 +1,9 @@
 #include <chrono>
 #include <thread>
 
-#include "./src/framebuffer/engine.h++"
+#include "./src/framebuffer/framebuffer.h++"
 #include "./src/renderer/ncrenderer.h++"
-
+#include "./src/matrix/matrix.h++"
 
 int main()
 {
@@ -16,7 +16,7 @@ int main()
 
     int frame = 0;
 
-    while (true) {
+    while(true) {
         buffer.fill_screen(black);
 
         int x = 20 + (frame % 30);

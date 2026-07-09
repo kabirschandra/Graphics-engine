@@ -1,5 +1,5 @@
-#ifndef ENGINE_H
-#define ENGINE_H
+#ifndef FRAMEBUFFER_H
+#define FRAMEBUFFER_H
 
 #include <vector>
 #include <cstdint>
@@ -298,17 +298,17 @@ class FrameBuffer {
     void fill_triangle(int x0, int y0, int x1, int y1, int x2, int y2, Colour colour)
     {
         // Sort by y: y0 <= y1 <= y2
-        if (y0 > y1) {
+        if(y0 > y1) {
             std::swap(y0, y1); std::swap(x0, x1); 
         }
-        if (y0 > y2) { 
+        if(y0 > y2) { 
             std::swap(y0, y2); std::swap(x0, x2); 
         }
-        if (y1 > y2) { 
+        if(y1 > y2) { 
             std::swap(y1, y2); std::swap(x1, x2); 
         }
 
-        if (y1 == y2) {
+        if(y1 == y2) {
             fill_flat_bottom_triangle(x0, y0, x1, y1, x2, y2, colour);
         } else if (y0 == y1) {
             fill_flat_top_triangle(x0, y0, x1, y1, x2, y2, colour);

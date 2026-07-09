@@ -3,7 +3,7 @@
 
 #include <ncurses.h>
 #include <locale.h>
-#include "../framebuffer/engine.h++"
+#include "../framebuffer/framebuffer.h++"
 
 class NCRenderer {
 
@@ -15,28 +15,28 @@ class NCRenderer {
      * @param colour :: Colour to convert
      * @return short :: Ncurses colour pair index
      */
-    short colour_to_pair(const Colour& colour) {
+    short colour_to_pair(Colour& colour) {
         int r = colour.red;
         int g = colour.green;
         int b = colour.blue;
 
-        if (r < 40 && g < 40 && b < 40) {
+        if(r < 40 && g < 40 && b < 40) {
             return 1;
         }
 
-        if (r >= g && r >= b) {
+        if(r >= g && r >= b) {
             if (g > 128) return 4; // yellow
             if (b > 128) return 6; // magenta
             return 2; // red
         }
 
-        if (g >= r && g >= b) {
+        if(g >= r && g >= b) {
             if (r > 128) return 4; // yellow
             if (b > 128) return 7; // cyan
             return 3; // green
         }
 
-        if (b >= r && b >= g) {
+        if(b >= r && b >= g) {
             if (r > 128) return 6; // magenta
             if (g > 128) return 7; // cyan
             return 5; // blue
@@ -57,10 +57,10 @@ class NCRenderer {
         grey = (grey * colour.alpha) / 255;
         grey = std::clamp(grey, 0, 255);
 
-        if (grey < 32)  return L' ';
-        if (grey < 96)  return L'░';
-        if (grey < 160) return L'▒';
-        if (grey < 224) return L'▓';
+        if(grey < 32)  return L' ';
+        if(grey < 96)  return L'░';
+        if(grey < 160) return L'▒';
+        if(grey < 224) return L'▓';
         return L'█';
     }
 
@@ -117,8 +117,8 @@ class NCRenderer {
 
         erase();
 
-        for (int y = 0; y < framebuffer.get_height(); y++) {
-            for (int x = 0; x < framebuffer.get_width(); x++) {
+        for(int y = 0; y < framebuffer.get_height(); y++) {
+            for(int x = 0; x < framebuffer.get_width(); x++) {
                 Colour pixel = framebuffer.at(x, y);
 
                 wchar_t block = colour_to_block(pixel);
