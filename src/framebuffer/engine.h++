@@ -51,6 +51,33 @@ class FrameBuffer {
     }
 
     /**
+     * @brief Get the framebuffer width
+     *
+     * @return int :: Width in pixels
+     */
+    int get_width(void) {
+        return this->width;
+    }
+
+    /**
+     * @brief Get the framebuffer height
+     *
+     * @return int :: Height in pixels
+     */
+    int get_height(void) {
+        return this->height;
+    }
+
+    /**
+     * @brief Get the framebuffer pixel buffer
+     *
+     * @return std::vector<Colour>& :: Reference to the pixel data
+     */
+    std::vector<Colour> &get_pixels(void) {
+        return this->pixels;
+    }
+
+    /**
      * @brief Fill the whole framebuffer with one colour
      *
      * @param colour :: Colour to paint across the buffer
