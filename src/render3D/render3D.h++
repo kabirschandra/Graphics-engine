@@ -1,123 +1,274 @@
 #ifndef RENDER3D_H
 #define RENDER3D_H
 
+#include <vector>
+#include <array>
+#include <algorithm>
 #include <cmath>
 
 #include "../framebuffer/framebuffer.h++"
 #include "../matrix/matrix.h++"
-#include "../objects/volumes.h++"
+#include "../objects/mesh.h++"
 
+
+/**
+ * @brief 3D renderer capable of drawing textured meshes.
+ *
+ * Render3D provides a simple pipeline for transforming, culling, sorting,
+ * projecting, and rasterizing textured mesh triangles onto a framebuffer.
+ */
 class Render3D {
 
-public:
+    private:
 
     /**
-     * @brief Draw a rotating cube
+     * @brief Triangle data prepared for rendering.
      *
-     * @param cube :: Cube to draw
-     * @param framebuffer :: Target framebuffer
-     * @param angle :: Rotation angle in radians
+     * The RenderTriangle stores transformed vertex positions, texture
+     * coordinates, and depth information used for painter's-order sorting.
+     */
+    typedef struct RenderTriangle {
+
+        Matrix vertices;
+
+        std::array<UV, 3> textureCoordinates;
+
+        float depth;
+
+    } RenderTriangle;
+
+
+    public:
+
+    /**
+     * @brief Render a textured mesh.
+     *
+     * @param mesh :: Mesh to render
+     * @param texture :: Texture applied using the OBJ UV coordinates (optional)
+     * @param framebuffer :: Destination framebuffer
      *
      * @return void :: None
      */
-    void draw_cube_standard(
-        Cube cube,
+    void draw_mesh(
+        Mesh &mesh,
         FrameBuffer &framebuffer,
-        float angle
+        Texture *texture = nullptr
     ) {
 
-        framebuffer.fill_screen({
-            0,
-            0,
-            0,
-            255
-        });
+        int screenWidth =
+            framebuffer.get_width();
 
-        float fov = 90.0f * M_PI / 180.0f;
+        int screenHeight =
+            framebuffer.get_height();
 
-        int screenWidth = framebuffer.get_width();
-        int screenHeight = framebuffer.get_height();
+        float fovDegrees =
+            70.0f;
+
+        float fovRadians =
+            fovDegrees *
+            float(M_PI) /
+            180.0f;
 
         float aspect =
             float(screenWidth) /
             float(screenHeight);
 
-        float near = 0.1f;
-        float far = 1000.0f;
+        float nearPlane =
+            0.1f;
 
-        Colour faceColours[6] = {
-            {255,   0,   0, 255},
-            {  0, 255,   0, 255},
-            {  0,   0, 255, 255},
-            {255, 255,   0, 255},
-            {  0, 255, 255, 255},
-            {255,   0, 255, 255}
-        };
+        float farPlane =
+            1000.0f;
 
-        Colour outline = {
-            255,
-            255,
-            255,
-            255
-        };
+        std::vector<RenderTriangle> renderTriangles;
 
-        for(size_t i = 0; i < cube.tris.size(); i++) {
+        for(MeshTriangle &sourceTriangle : mesh.tris) {
 
-            Matrix triangle = cube.tris[i];
-
-            triangle = triangle.translate(
-                -0.5f,
-                -0.5f,
-                -0.5f
-            );
+            Matrix triangle =
+                sourceTriangle.vertices.copy();
 
             triangle = triangle.scale(
-                2.0f,
-                2.0f,
-                2.0f
+                mesh.scale.x,
+                mesh.scale.y,
+                mesh.scale.z
             );
 
-            triangle = triangle.rotate_x(angle);
-            triangle = triangle.rotate_y(angle);
-            triangle = triangle.rotate_z(angle);
+            triangle = triangle.rotate_x(
+                mesh.rotation.x
+            );
+
+            triangle = triangle.rotate_y(
+                mesh.rotation.y
+            );
+
+            triangle = triangle.rotate_z(
+                mesh.rotation.z
+            );
 
             triangle = triangle.translate(
-                0.0f,
-                0.0f,
-                3.0f
+                mesh.position.x,
+                mesh.position.y,
+                mesh.position.z
             );
 
-            triangle = triangle.project(
-                fov,
-                aspect,
-                near,
-                far
-            );
+            /*
+             * Minimal near-plane handling.
+             *
+             * Proper clipping can be added later. For now, reject a
+             * triangle if any vertex crosses the near plane.
+             */
+            bool crossesNearPlane =
+                false;
 
-            triangle = triangle.perspective_divide();
+            for(size_t vertex = 0; vertex < 3; vertex++) {
 
-            triangle = triangle.viewport(
-                screenWidth,
-                screenHeight
-            );
+                if(
+                    triangle.at(vertex, 2) <=
+                    nearPlane
+                ) {
+                    crossesNearPlane =
+                        true;
 
-            Colour faceColour = faceColours[i / 2];
+                    break;
+                }
+            }
 
-            framebuffer.fill_triangle(
+            if(crossesNearPlane) {
+                continue;
+            }
+
+            /*
+             * Back-face culling.
+             */
+            float edge1X =
+                triangle.at(1, 0) -
+                triangle.at(0, 0);
+
+            float edge1Y =
+                triangle.at(1, 1) -
+                triangle.at(0, 1);
+
+            float edge1Z =
+                triangle.at(1, 2) -
+                triangle.at(0, 2);
+
+            float edge2X =
+                triangle.at(2, 0) -
+                triangle.at(0, 0);
+
+            float edge2Y =
+                triangle.at(2, 1) -
+                triangle.at(0, 1);
+
+            float edge2Z =
+                triangle.at(2, 2) -
+                triangle.at(0, 2);
+
+            float normalX =
+                edge1Y * edge2Z -
+                edge1Z * edge2Y;
+
+            float normalY =
+                edge1Z * edge2X -
+                edge1X * edge2Z;
+
+            float normalZ =
+                edge1X * edge2Y -
+                edge1Y * edge2X;
+
+            float cameraRayX =
+                triangle.at(0, 0);
+
+            float cameraRayY =
+                triangle.at(0, 1);
+
+            float cameraRayZ =
+                triangle.at(0, 2);
+
+            float facing =
+                normalX * cameraRayX +
+                normalY * cameraRayY +
+                normalZ * cameraRayZ;
+
+            if(facing >= 0.0f) {
+                continue;
+            }
+
+            float averageDepth =
+                (
+                    triangle.at(0, 2) +
+                    triangle.at(1, 2) +
+                    triangle.at(2, 2)
+                ) /
+                3.0f;
+
+            renderTriangles.push_back({
                 triangle,
-                faceColour
-            );
+                sourceTriangle.textureCoordinates,
+                averageDepth
+            });
+        }
 
-            framebuffer.draw_triangle(
-                triangle,
-                outline
-            );
+        /*
+         * Draw farther triangles first.
+         */
+        std::sort(
+            renderTriangles.begin(),
+            renderTriangles.end(),
+
+            [](
+                const RenderTriangle &left,
+                const RenderTriangle &right
+            ) {
+
+                return left.depth > right.depth;
+            }
+        );
+
+        for(RenderTriangle &renderTriangle : renderTriangles) {
+
+            Matrix triangle =
+                renderTriangle.vertices.project(
+                    fovRadians,
+                    aspect,
+                    nearPlane,
+                    farPlane
+                );
+
+            triangle =
+                triangle.perspective_divide();
+
+            triangle =
+                triangle.viewport(
+                    screenWidth,
+                    screenHeight
+                );
+
+            if(texture != nullptr) {
+
+                framebuffer.fill_textured_triangle(
+                    triangle,
+                    renderTriangle.textureCoordinates,
+                    *texture
+                );
+
+            } else {
+
+                framebuffer.draw_triangle(
+                    triangle,
+                    {
+                        255,
+                        255,
+                        255,
+                        255
+                    }
+                );
+            }
         }
 
         return;
     }
-
 };
+
 
 #endif
 

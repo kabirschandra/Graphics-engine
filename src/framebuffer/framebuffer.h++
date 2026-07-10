@@ -9,6 +9,9 @@
 #include <string>
 #include <stdexcept>
 #include "../matrix/matrix.h++"
+#include <array>
+
+#include "../objects/mesh.h++"
 
 typedef struct Colour {
     uint8_t red = 0;
@@ -24,6 +27,56 @@ typedef struct Sprite {
     int height = 0;
     std::vector<Colour> pixels = {};
 } Sprite;
+
+/**
+ * @brief RGBA texture stored in CPU memory.
+ */
+typedef struct Texture {
+
+    int width = 0;
+    int height = 0;
+
+    std::vector<Colour> pixels;
+
+
+    Colour sample(float u, float v) const {
+
+        if(width <= 0 || height <= 0 || pixels.empty()) {
+            return {
+                255,
+                0,
+                255,
+                255
+            };
+        }
+
+        u = std::clamp(
+            u,
+            0.0f,
+            1.0f
+        );
+
+        v = std::clamp(
+            v,
+            0.0f,
+            1.0f
+        );
+
+        int x = int(
+            u * float(width - 1)
+        );
+
+        int y = int(
+            (1.0f - v) *
+            float(height - 1)
+        );
+
+        return pixels[
+            y * width + x
+        ];
+    }
+
+} Texture;
 
 class FrameBuffer {
 
@@ -402,7 +455,237 @@ class FrameBuffer {
 
         return;
     }
+    /**
+     * @brief Fill a screen-space triangle with a texture.
+     *
+     * The triangle must already have been projected, perspective-divided,
+     * and converted to framebuffer coordinates.
+     *
+     * The triangle's W values must still contain their clip-space values
+     * so UV interpolation can remain perspective-correct.
+     *
+     * @param triangle :: 3x4 screen-space triangle matrix
+     * @param textureCoordinates :: UV coordinate for each vertex
+     * @param texture :: Texture to sample
+     *
+     * @return void :: None
+     */
+    void fill_textured_triangle(
+        Matrix &triangle,
+        const std::array<UV, 3> &textureCoordinates,
+        const Texture &texture
+    ) {
 
+        if(
+            triangle.get_rows() != 3 ||
+            triangle.get_cols() < 4
+        ) {
+            throw std::invalid_argument(
+                "FATAL: A textured triangle must be a 3x4 matrix.\n"
+            );
+        }
+
+        float x0 = triangle.at(0, 0);
+        float y0 = triangle.at(0, 1);
+
+        float x1 = triangle.at(1, 0);
+        float y1 = triangle.at(1, 1);
+
+        float x2 = triangle.at(2, 0);
+        float y2 = triangle.at(2, 1);
+
+        float w0 = triangle.at(0, 3);
+        float w1 = triangle.at(1, 3);
+        float w2 = triangle.at(2, 3);
+
+        if(
+            std::fabs(w0) < 0.000001f ||
+            std::fabs(w1) < 0.000001f ||
+            std::fabs(w2) < 0.000001f
+        ) {
+            return;
+        }
+
+        float inverseW0 = 1.0f / w0;
+        float inverseW1 = 1.0f / w1;
+        float inverseW2 = 1.0f / w2;
+
+        float minimumX = std::min({
+            x0,
+            x1,
+            x2
+        });
+
+        float maximumX = std::max({
+            x0,
+            x1,
+            x2
+        });
+
+        float minimumY = std::min({
+            y0,
+            y1,
+            y2
+        });
+
+        float maximumY = std::max({
+            y0,
+            y1,
+            y2
+        });
+
+        int startX = std::max(
+            0,
+            int(std::floor(minimumX))
+        );
+
+        int endX = std::min(
+            this->width - 1,
+            int(std::ceil(maximumX))
+        );
+
+        int startY = std::max(
+            0,
+            int(std::floor(minimumY))
+        );
+
+        int endY = std::min(
+            this->height - 1,
+            int(std::ceil(maximumY))
+        );
+
+        auto edge = [](
+            float ax,
+            float ay,
+            float bx,
+            float by,
+            float px,
+            float py
+        ) {
+
+            return
+                (px - ax) * (by - ay) -
+                (py - ay) * (bx - ax);
+        };
+
+        float area = edge(
+            x0,
+            y0,
+            x1,
+            y1,
+            x2,
+            y2
+        );
+
+        if(std::fabs(area) < 0.000001f) {
+            return;
+        }
+
+        for(int y = startY; y <= endY; y++) {
+
+            for(int x = startX; x <= endX; x++) {
+
+                float pixelX =
+                    float(x) + 0.5f;
+
+                float pixelY =
+                    float(y) + 0.5f;
+
+                float barycentric0 =
+                    edge(
+                        x1,
+                        y1,
+                        x2,
+                        y2,
+                        pixelX,
+                        pixelY
+                    ) / area;
+
+                float barycentric1 =
+                    edge(
+                        x2,
+                        y2,
+                        x0,
+                        y0,
+                        pixelX,
+                        pixelY
+                    ) / area;
+
+                float barycentric2 =
+                    edge(
+                        x0,
+                        y0,
+                        x1,
+                        y1,
+                        pixelX,
+                        pixelY
+                    ) / area;
+
+                if(
+                    barycentric0 < 0.0f ||
+                    barycentric1 < 0.0f ||
+                    barycentric2 < 0.0f
+                ) {
+                    continue;
+                }
+
+                float interpolatedInverseW =
+                    barycentric0 * inverseW0 +
+                    barycentric1 * inverseW1 +
+                    barycentric2 * inverseW2;
+
+                if(
+                    std::fabs(interpolatedInverseW) <
+                    0.000001f
+                ) {
+                    continue;
+                }
+
+                float u =
+                    (
+                        barycentric0 *
+                        textureCoordinates[0].u *
+                        inverseW0 +
+
+                        barycentric1 *
+                        textureCoordinates[1].u *
+                        inverseW1 +
+
+                        barycentric2 *
+                        textureCoordinates[2].u *
+                        inverseW2
+                    ) /
+                    interpolatedInverseW;
+
+                float v =
+                    (
+                        barycentric0 *
+                        textureCoordinates[0].v *
+                        inverseW0 +
+
+                        barycentric1 *
+                        textureCoordinates[1].v *
+                        inverseW1 +
+
+                        barycentric2 *
+                        textureCoordinates[2].v *
+                        inverseW2
+                    ) /
+                    interpolatedInverseW;
+
+                this->colour_pixel(
+                    x,
+                    y,
+                    texture.sample(
+                        u,
+                        v
+                    )
+                );
+            }
+        }
+
+        return;
+    }
 
     /**
      * @brief Draw a sprite onto the framebuffer
