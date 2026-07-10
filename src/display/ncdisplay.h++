@@ -9,6 +9,14 @@
 #include <locale.h>
 #include "../framebuffer/framebuffer.h++"
 
+/**
+ * @class NCDisplay
+ * @brief Wraps ncurses functionality for framebuffer presentation.
+ *
+ * This class initializes and shuts down the ncurses environment, converts
+ * Colour values to terminal colour pairs and block characters, and renders
+ * a FrameBuffer to the terminal with logical coordinate scaling.
+ */
 class NCDisplay {
 
     private:
@@ -122,10 +130,9 @@ class NCDisplay {
 
 
     /**
-     * @brief Render a framebuffer to the terminal
+     * @brief Render a framebuffer to the terminal.
      *
      * @param framebuffer :: Framebuffer to display
-     *
      * @return void :: None
      */
     void present(FrameBuffer& framebuffer) {
@@ -149,6 +156,45 @@ class NCDisplay {
     }
 
 
+
+    /**
+     * @brief Get the usable framebuffer width in logical pixels.
+     *
+     * @return int :: Logical width after terminal horizontal scaling
+     */
+    int get_logical_width(void) {
+
+        int terminalHeight;
+        int terminalWidth;
+
+        getmaxyx(
+            stdscr,
+            terminalHeight,
+            terminalWidth
+        );
+
+        return int(float(terminalWidth) / XSCALE);
+    }
+
+
+    /**
+     * @brief Get the usable framebuffer height in logical pixels.
+     *
+     * @return int :: Logical height after terminal vertical scaling
+     */
+    int get_logical_height(void) {
+
+        int terminalHeight;
+        int terminalWidth;
+
+        getmaxyx(
+            stdscr,
+            terminalHeight,
+            terminalWidth
+        );
+
+        return int(float(terminalHeight) / YSCALE);
+    }
 };
 
 

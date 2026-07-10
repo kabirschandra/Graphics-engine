@@ -2,20 +2,31 @@
 #include <thread>
 
 #include "./src/framebuffer/framebuffer.h++"
-#include "./src/display/ncdisplay.h++"
+#include "./src/display/sdgldisplay.h++"
 #include "./src/render3D/render3D.h++"
-#include "./src/objects/volumes.h++"
+
 
 int main() {
 
-    FrameBuffer framebuffer(300, 100);
-    NCDisplay display;
-    Render3D renderer;
+    FrameBuffer framebuffer(
+        1280,
+        720
+    );
+
+    SDLGLDisplay display(
+        "Graphics Engine",
+        1280,
+        720,
+        framebuffer.get_width(),
+        framebuffer.get_height()
+    );
+
     Cube cube;
+    Render3D renderer;
 
     float angle = 0.0f;
 
-    while(true) {
+    while(display.process_events()) {
 
         renderer.draw_cube_standard(
             cube,
@@ -23,9 +34,15 @@ int main() {
             angle
         );
 
-        display.present(framebuffer);
+        display.present(
+            framebuffer
+        );
 
         angle += 0.02f;
+
+        std::this_thread::sleep_for(
+            std::chrono::milliseconds(8)
+        );
     }
 
     return 0;
