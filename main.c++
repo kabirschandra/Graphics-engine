@@ -2,37 +2,31 @@
 #include <thread>
 
 #include "./src/framebuffer/framebuffer.h++"
-#include "./src/renderer/ncrenderer.h++"
-#include "./src/matrix/matrix.h++"
+#include "./src/display/ncdisplay.h++"
+#include "./src/render3D/render3D.h++"
+#include "./src/objects/volumes.h++"
 
-int main()
-{
-    FrameBuffer buffer(80, 40);
-    NCRenderer renderer;
+int main() {
 
-    Colour black  = {  0,   0,   0, 255};
-    Colour green  = {  0, 255,   0, 255};
-    Colour yellow = {255, 255,   0, 255};
+    FrameBuffer framebuffer(300, 100);
+    NCDisplay display;
+    Render3D renderer;
+    Cube cube;
 
-    int frame = 0;
+    float angle = 0.0f;
 
     while(true) {
-        buffer.fill_screen(black);
 
-        int x = 20 + (frame % 30);
+        renderer.draw_cube_standard(
+            cube,
+            framebuffer,
+            angle
+        );
 
-        buffer.fill_triangle( x, 5, x - 8, 25, x + 8, 25, green);
+        display.present(framebuffer);
 
-        buffer.draw_triangle( x, 5, x - 8, 25, x + 8, 25, yellow);
-
-        renderer.present(buffer);
-
-        frame++;
-
-        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        angle += 0.02f;
     }
 
     return 0;
 }
-
-

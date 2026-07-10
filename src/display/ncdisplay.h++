@@ -1,11 +1,15 @@
-#ifndef NCRENDERER
-#define NCRENDERER
+#ifndef NCDISPLAY
+#define NCDISPLAY
+#define XSCALE 2.0f
+#define YSCALE 1.0f
+
+
 
 #include <ncurses.h>
 #include <locale.h>
 #include "../framebuffer/framebuffer.h++"
 
-class NCRenderer {
+class NCDisplay {
 
     private:
 
@@ -16,6 +20,7 @@ class NCRenderer {
      * @return short :: Ncurses colour pair index
      */
     short colour_to_pair(Colour& colour) {
+
         int r = colour.red;
         int g = colour.green;
         int b = colour.blue;
@@ -24,22 +29,32 @@ class NCRenderer {
             return 1;
         }
 
+        if(r > 200 && g > 200 && b > 200) {
+            return 8;
+        }
+
+        if(r > 128 && g > 128 && b < 128) {
+            return 4;
+        }
+
+        if(r > 128 && b > 128 && g < 128) {
+            return 6;
+        }
+
+        if(g > 128 && b > 128 && r < 128) {
+            return 7;
+        }
+
         if(r >= g && r >= b) {
-            if (g > 128) return 4; // yellow
-            if (b > 128) return 6; // magenta
-            return 2; // red
+            return 2;
         }
 
         if(g >= r && g >= b) {
-            if (r > 128) return 4; // yellow
-            if (b > 128) return 7; // cyan
-            return 3; // green
+            return 3;
         }
 
         if(b >= r && b >= g) {
-            if (r > 128) return 6; // magenta
-            if (g > 128) return 7; // cyan
-            return 5; // blue
+            return 5;
         }
 
         return 8;
@@ -67,11 +82,11 @@ class NCRenderer {
 
     public:
     /**
-     * @brief Initialize the ncurses renderer
+     * @brief Initialize the ncurses Display
      *
      * @return void :: None
      */
-    NCRenderer() {
+    NCDisplay() {
         setlocale(LC_ALL, "");
         initscr();
         noecho();
@@ -96,11 +111,11 @@ class NCRenderer {
 
 
     /**
-     * @brief Shut down the ncurses renderer
+     * @brief Shut down the ncurses Display
      *
      * @return void :: None
      */
-    ~NCRenderer() {
+    ~NCDisplay() {
         endwin();
     }
 
@@ -125,7 +140,7 @@ class NCRenderer {
                 short pair = colour_to_pair(pixel);
 
                 attron(COLOR_PAIR(pair));
-                mvaddnwstr(y, x, &block, 1);
+                mvaddnwstr(y * YSCALE, x * XSCALE, &block, 1);
                 attroff(COLOR_PAIR(pair));
             }
         }

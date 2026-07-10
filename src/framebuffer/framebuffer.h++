@@ -8,6 +8,7 @@
 #include <iostream>
 #include <string>
 #include <stdexcept>
+#include "../matrix/matrix.h++"
 
 typedef struct Colour {
     uint8_t red = 0;
@@ -103,7 +104,7 @@ class FrameBuffer {
             y < this->height) {
             return true;
         } else {
-            std::cerr << "WARNING: Pixel (" << x << ", " << y << ") is not within bounds.\n";
+            //std::cerr << "WARNING: Pixel (" << x << ", " << y << ") is not within bounds.\n";
             return false;
         }
         return false;
@@ -203,6 +204,47 @@ class FrameBuffer {
         return;
     }
 
+
+    /**
+     * @brief Draw the outline of a triangle from a 3x4 matrix
+     *
+     * Each row is one vertex:
+     *
+     * [x0, y0, z0, w0]
+     * [x1, y1, z1, w1]
+     * [x2, y2, z2, w2]
+     *
+     * @param triangle :: Triangle matrix containing three vertices
+     * @param colour :: Colour to draw the triangle
+     *
+     * @return void :: None
+     */
+    void draw_triangle(Matrix &triangle, Colour colour) {
+
+        if(triangle.get_rows() != 3 || triangle.get_cols() < 2) {
+            throw std::invalid_argument(
+                "FATAL: Triangle matrix must have 3 rows and at least 2 columns.\n"
+            );
+        }
+
+        int x0 = int(triangle.at(0, 0));
+        int y0 = int(triangle.at(0, 1));
+
+        int x1 = int(triangle.at(1, 0));
+        int y1 = int(triangle.at(1, 1));
+
+        int x2 = int(triangle.at(2, 0));
+        int y2 = int(triangle.at(2, 1));
+
+        this->draw_line(x0, y0, x1, y1, colour);
+        this->draw_line(x1, y1, x2, y2, colour);
+        this->draw_line(x2, y2, x0, y0, colour);
+
+        return;
+    }
+
+
+
     /**
      * @brief Draw a horizontal line segment
      *
@@ -295,8 +337,7 @@ class FrameBuffer {
      *
      * @return void :: None
      */
-    void fill_triangle(int x0, int y0, int x1, int y1, int x2, int y2, Colour colour)
-    {
+    void fill_triangle(int x0, int y0, int x1, int y1, int x2, int y2, Colour colour) {
         // Sort by y: y0 <= y1 <= y2
         if(y0 > y1) {
             std::swap(y0, y1); std::swap(x0, x1); 
@@ -322,6 +363,46 @@ class FrameBuffer {
         }
         return;
     }
+
+
+    /**
+     * @brief Fill a triangle from a 3x4 matrix
+     *
+     * Each row represents one vertex:
+     *
+     * [x0, y0, z0, w0]
+     * [x1, y1, z1, w1]
+     * [x2, y2, z2, w2]
+     *
+     * @param triangle :: Triangle matrix containing three vertices
+     * @param colour :: Colour used to fill the triangle
+     *
+     * @return void :: None
+     */
+    void fill_triangle(Matrix &triangle, Colour colour) {
+
+        if(triangle.get_rows() != 3 || triangle.get_cols() < 2) {
+            throw std::invalid_argument(
+                "FATAL: Triangle matrix must have 3 rows and at least 2 columns.\n"
+            );
+        }
+
+        this->fill_triangle(
+            int(triangle.at(0, 0)),
+            int(triangle.at(0, 1)),
+
+            int(triangle.at(1, 0)),
+            int(triangle.at(1, 1)),
+
+            int(triangle.at(2, 0)),
+            int(triangle.at(2, 1)),
+
+            colour
+        );
+
+        return;
+    }
+
 
     /**
      * @brief Draw a sprite onto the framebuffer
