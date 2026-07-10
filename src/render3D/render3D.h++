@@ -84,7 +84,7 @@ public:
             triangle = triangle.translate(
                 0.0f,
                 0.0f,
-                3.0f
+                0.0f
             );
 
             triangle = triangle.project(
